@@ -1,0 +1,18 @@
+{
+  "name": "qx-demo-trader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "trade:demo": "node qx-demo-10x1.mjs",
+    "trade:demo:headed": "HEADED=1 node qx-demo-10x1.mjs",
+    "signal": "node qx-signal.mjs",
+    "signal:headed": "HEADED=1 node qx-signal.mjs",
+    "signal:lite": "node qx-signal-lite.mjs"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "playwright": "^1.47.0",
+    "technicalindicators": "^3.1.0"
+  }
+}

@@ -1,0 +1,12 @@
+services:
+  - type: worker
+    name: qx-signal-lite
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node qx-signal-lite.mjs
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_CHAT_ID
+        sync: false
