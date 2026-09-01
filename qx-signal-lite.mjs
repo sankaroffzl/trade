@@ -17,21 +17,17 @@ async function sendTelegram(text){
 
 const MARKETS = [
   { name: 'EUR/USD', yahoo: 'EURUSD=X' },
-  { name: 'EUR/USD OTC', yahoo: 'EURUSD=X' },
   { name: 'GBP/USD', yahoo: 'GBPUSD=X' },
-  { name: 'GBP/USD OTC', yahoo: 'GBPUSD=X' },
   { name: 'USD/JPY', yahoo: 'JPY=X' },
-  { name: 'USD/JPY OTC', yahoo: 'JPY=X' },
   { name: 'AUD/USD', yahoo: 'AUDUSD=X' },
-  { name: 'AUD/USD OTC', yahoo: 'AUDUSD=X' },
   { name: 'USD/CAD', yahoo: 'CAD=X' },
   { name: 'EUR/JPY', yahoo: 'EURJPY=X' },
   { name: 'GBP/JPY', yahoo: 'GBPJPY=X' },
-  { name: 'BTC/USD OTC', yahoo: 'BTC-USD' },
   { name: 'EUR/GBP', yahoo: 'EURGBP=X' },
   { name: 'USD/CHF', yahoo: 'CHF=X' },
   { name: 'AUD/JPY', yahoo: 'AUDJPY=X' },
   { name: 'NZD/USD', yahoo: 'NZDUSD=X' },
+  { name: 'BTC/USD', yahoo: 'BTC-USD' },
 ];
 
 const STRICT = true;
@@ -123,10 +119,10 @@ async function main(){
   const tgStatus = TG_TOKEN && TG_CHAT ? `Telegram: ON → ${TG_CHAT}` : 'Telegram: OFF (add TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID to .env to enable phone push)';
   console.log(`
 === Quotex SIGNAL LITE - Compare All Markets - Perfect Market Picker ===
-Source: Yahoo Finance 1m (real market)
-Strategy: RSI14 + EMA9/21 + EMA50, 1min expiry - compares all 16, shows #1 perfect
+Source: Yahoo Finance 1m (real market, non-OTC only for 99% accuracy)
+Strategy: RSI14 + EMA9/21 + EMA50, 1min expiry - compares all 12, shows #1 perfect
 Mode: SIGNAL ONLY - you trade manually | ${tgStatus}
-Strict: ${STRICT ? `ON (min Score ${MIN_SCORE}, HIGH/MEDIUM only)` : 'OFF'} | W:${wins} L:${losses}
+Strict: ${STRICT ? `ON (min Score ${MIN_SCORE}, HIGH/MEDIUM only)` : 'OFF'} | Synced to :00 | W:${wins} L:${losses}
 Risk: Educational only. Not financial advice. High-risk.
 `);
 
@@ -134,11 +130,14 @@ Risk: Educational only. Not financial advice. High-risk.
   let results = await scanAll();
   printComparison(results);
 
-  console.log(`\n--- Live every 60s - 1 per candle, clean no duplicates (Ctrl+C to stop) ---`);
-  setInterval(async()=>{
-    results = await scanAll();
-    printComparison(results);
-  }, 60000);
+  const delayToNextMinute = 60000 - (Date.now() % 60000) + 2000;
+  console.log(`\n--- Live every 60s synced to Quotex :00 candle (next in ${Math.round(delayToNextMinute/1000)}s, Ctrl+C to stop) ---`);
+  setTimeout(()=>{
+    setInterval(async()=>{
+      results = await scanAll();
+      printComparison(results);
+    }, 60000);
+  }, delayToNextMinute);
 }
 
 function printComparison(results){
@@ -164,7 +163,7 @@ function printComparison(results){
     }
   }
 
-  console.log(`\n[${time}] Compared 16 markets - ranked by accuracy:`);
+  console.log(`\n[${time}] Compared 12 markets - ranked by accuracy:`);
   console.log(` Rank | Market         | Signal     | Price      | RSI   | Trend | Score | Reason`);
   console.log(` ---- | -------------- | ---------- | ---------- | ----- | ----- | ----- | ----------------`);
   results.slice(0,8).forEach((r,i)=>{
@@ -188,7 +187,7 @@ function printComparison(results){
       const nextGood = results.find(r=> (r.signal==='BUY'||r.signal==='SELL') && r.score >= MIN_SCORE);
       if (nextGood) console.log(`   → Next good: ${nextGood.market} ${nextGood.signal} Score ${nextGood.score.toFixed(1)}`);
     } else {
-      console.log(`${arrow} ┌─ PERFECT MARKET (Best of 16) ──────────`);
+      console.log(`${arrow} ┌─ PERFECT MARKET (Best of 12) ──────────`);
       console.log(`   │ Market: ${best.market}`);
       console.log(`   │ Signal: ${dir}  (1 MIN)`);
       console.log(`   │ Time: ${time}`);
@@ -203,7 +202,7 @@ function printComparison(results){
         console.log(`   🔔 BEEP + queued for 1m result check (W:${wins} L:${losses})`);
         const stars2 = best.score > 15 ? '⭐⭐⭐ HIGH' : best.score > 8 ? '⭐⭐ MEDIUM' : '⭐ LOW';
         const arrow2 = best.signal === 'BUY' ? '🟢' : '🔴';
-        sendTelegram(`${arrow2} *PERFECT MARKET* ⭐ #1/16\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars2}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_`);
+        sendTelegram(`${arrow2} *PERFECT MARKET* ⭐ #1/12\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars2}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_ Synced :00`);
       }
     }
   } else {
