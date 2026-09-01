@@ -34,6 +34,9 @@ const MARKETS = [
   { name: 'NZD/USD', yahoo: 'NZDUSD=X' },
 ];
 
+const STRICT = true;
+const MIN_SCORE = 12;
+
 const history = new Map();
 for (const m of MARKETS) history.set(m.name, []);
 const pending = [];
@@ -123,6 +126,7 @@ async function main(){
 Source: Yahoo Finance 1m (real market)
 Strategy: RSI14 + EMA9/21 + EMA50, 1min expiry - compares all 16, shows #1 perfect
 Mode: SIGNAL ONLY - you trade manually | ${tgStatus}
+Strict: ${STRICT ? `ON (min Score ${MIN_SCORE}, HIGH/MEDIUM only)` : 'OFF'} | W:${wins} L:${losses}
 Risk: Educational only. Not financial advice. High-risk.
 `);
 
@@ -177,23 +181,30 @@ function printComparison(results){
     const arrow = best.signal === 'BUY' ? '🟢' : '🔴';
     const dir = best.signal === 'BUY' ? 'BUY ↑' : 'SELL ↓';
     const stars = best.score > 15 ? '⭐⭐⭐ HIGH' : best.score > 8 ? '⭐⭐ MEDIUM' : '⭐ LOW';
-    console.log(`${arrow} ┌─ PERFECT MARKET (Best of 16) ──────────`);
-    console.log(`   │ Market: ${best.market}`);
-    console.log(`   │ Signal: ${dir}  (1 MIN)`);
-    console.log(`   │ Time: ${time}`);
-    console.log(`   │ Price: ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars}`);
-    console.log(`   │ Reason: ${best.reason}`);
-    console.log(`   └─────────────────────────────────`);
-    console.log(`   👉 Trade this ONE market manually on Quotex (1m expiry, $1)`);
-    // Beep + queue for WIN/LOSS check + Telegram
-    const already = pending.find(p=> p.market===best.market && now - p.ts < 30000);
-    if (!already) {
-      pending.push({ market: best.market, price: best.price, signal: best.signal, score: best.score, ts: now });
-      process.stdout.write('\x07');
-      console.log(`   🔔 BEEP + queued for 1m result check (W:${wins} L:${losses})`);
-      const stars = best.score > 15 ? '⭐⭐⭐ HIGH' : best.score > 8 ? '⭐⭐ MEDIUM' : '⭐ LOW';
-      const arrow = best.signal === 'BUY' ? '🟢' : '🔴';
-      sendTelegram(`${arrow} *PERFECT MARKET* ⭐ #1/16\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_`);
+    const strictPass = !STRICT || (best.score >= MIN_SCORE && stars !== '⭐ LOW');
+    if (!strictPass) {
+      console.log(`⚪ Filtered: Best is ${best.market} ${best.signal} but Score ${best.score.toFixed(1)} ${stars} < STRICT ${MIN_SCORE} — SKIPPED (no beep)`);
+      console.log(`   → Strict ON: only Score ≥${MIN_SCORE} + MEDIUM/HIGH trades. Choppy/LOW signals silenced.`);
+      const nextGood = results.find(r=> (r.signal==='BUY'||r.signal==='SELL') && r.score >= MIN_SCORE);
+      if (nextGood) console.log(`   → Next good: ${nextGood.market} ${nextGood.signal} Score ${nextGood.score.toFixed(1)}`);
+    } else {
+      console.log(`${arrow} ┌─ PERFECT MARKET (Best of 16) ──────────`);
+      console.log(`   │ Market: ${best.market}`);
+      console.log(`   │ Signal: ${dir}  (1 MIN)`);
+      console.log(`   │ Time: ${time}`);
+      console.log(`   │ Price: ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars}`);
+      console.log(`   │ Reason: ${best.reason}`);
+      console.log(`   └─────────────────────────────────`);
+      console.log(`   👉 Trade this ONE market manually on Quotex (1m expiry, $1)`);
+      const already = pending.find(p=> p.market===best.market && now - p.ts < 30000);
+      if (!already) {
+        pending.push({ market: best.market, price: best.price, signal: best.signal, score: best.score, ts: now });
+        process.stdout.write('\x07');
+        console.log(`   🔔 BEEP + queued for 1m result check (W:${wins} L:${losses})`);
+        const stars2 = best.score > 15 ? '⭐⭐⭐ HIGH' : best.score > 8 ? '⭐⭐ MEDIUM' : '⭐ LOW';
+        const arrow2 = best.signal === 'BUY' ? '🟢' : '🔴';
+        sendTelegram(`${arrow2} *PERFECT MARKET* ⭐ #1/16\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars2}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_`);
+      }
     }
   } else {
     console.log(`⚪ No BUY/SELL this scan - Best candidate is ${best.market} but still ${best.signal} (${best.reason})`);
