@@ -134,11 +134,11 @@ Risk: Educational only. Not financial advice. High-risk.
   let results = await scanAll();
   printComparison(results);
 
-  console.log(`\n--- Live every 15s - compares all 16, shows perfect market (Ctrl+C to stop) ---`);
+  console.log(`\n--- Live every 60s - 1 per candle, clean no duplicates (Ctrl+C to stop) ---`);
   setInterval(async()=>{
     results = await scanAll();
     printComparison(results);
-  }, 15000);
+  }, 60000);
 }
 
 function printComparison(results){
@@ -196,7 +196,7 @@ function printComparison(results){
       console.log(`   │ Reason: ${best.reason}`);
       console.log(`   └─────────────────────────────────`);
       console.log(`   👉 Trade this ONE market manually on Quotex (1m expiry, $1)`);
-      const already = pending.find(p=> p.market===best.market && now - p.ts < 30000);
+      const already = pending.find(p=> p.market===best.market && now - p.ts < 60000);
       if (!already) {
         pending.push({ market: best.market, price: best.price, signal: best.signal, score: best.score, ts: now });
         process.stdout.write('\x07');
