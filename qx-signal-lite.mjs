@@ -1,4 +1,4 @@
-import { RSI, EMA } from 'technicalindicators';
+import { RSI, EMA, Stochastic, BollingerBands, MACD } from 'technicalindicators';
 import 'dotenv/config';
 
 const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
@@ -100,7 +100,7 @@ const pending = [];
 let wins = 0, losses = 0;
 
 function calcSignal(prices){
-  if (prices.length < 22) return { signal:'WAIT', reason:`collecting ${prices.length}/22`, rsi:null, trend:'--', score:-999 };
+  if (prices.length < 30) return { signal:'WAIT', reason:`collecting ${prices.length}/30`, rsi:null, trend:'--', score:-999, stochK:null, bb:null };
   const rsiArr = RSI.calculate({period:14, values: prices});
   const ema9Arr = EMA.calculate({period:9, values: prices});
   const ema21Arr = EMA.calculate({period:21, values: prices});
@@ -115,7 +115,22 @@ function calcSignal(prices){
   const crossDown = ema9 < ema21;
   const nearEma50 = Math.abs(price - ema50) / price < 0.0008;
   const emaGap = Math.abs(ema9 - ema21) / price * 1000;
-  if (rsi === undefined || ema9 === undefined) return { signal:'WAIT', reason:'warming up', rsi, trend, score:-999 };
+  if (rsi === undefined || ema9 === undefined) return { signal:'WAIT', reason:'warming up', rsi, trend, score:-999, stochK:null, bb:null };
+  let stochK=null, stochD=null, bbLower=null, bbUpper=null, bbMiddle=null, macdHist=null;
+  try{
+    const stoch = Stochastic.calculate({high: prices, low: prices, close: prices, period:14, signalPeriod:3});
+    const last = stoch[stoch.length-1];
+    stochK = last?.k; stochD = last?.d;
+  } catch{}
+  try{
+    const bb = BollingerBands.calculate({period:20, values: prices, stdDev:2});
+    const lastBB = bb[bb.length-1];
+    bbLower = lastBB?.lower; bbUpper = lastBB?.upper; bbMiddle = lastBB?.middle;
+  } catch{}
+  try{
+    const macd = MACD.calculate({values: prices, fastPeriod:12, slowPeriod:26, signalPeriod:9, SimpleMAOscillator:false, SimpleMASignal:false});
+    macdHist = macd[macd.length-1]?.histogram;
+  } catch{}
   let score = 0;
   score += Math.abs(rsi - 50) * 0.6;
   score += emaGap * 2;
@@ -123,14 +138,34 @@ function calcSignal(prices){
   if (trend === 'DOWN' && crossDown) score += 8;
   if (nearEma50) score -= 6;
   if (rsi > 45 && rsi < 55) score -= 8;
+  if (stochK !== null && stochK > 20 && stochK < 80) score -= 4;
+  const nearUpperBB = bbUpper && price >= bbUpper * 0.998;
+  const nearLowerBB = bbLower && price <= bbLower * 1.002;
+  if (nearUpperBB || nearLowerBB) score += 6;
 
-  if (rsi < 32) return { signal:'BUY', reason:`RSI oversold ${rsi.toFixed(1)}${crossUp?' + EMA cross':''}`, rsi, trend, score: score+12, emaGap };
-  if (rsi > 68) return { signal:'SELL', reason:`RSI overbought ${rsi.toFixed(1)}${crossDown?' + EMA cross':''}`, rsi, trend, score: score+12, emaGap };
-  if (trend === 'UP' && crossUp && rsi >= 30 && rsi <= 50) return { signal:'BUY', reason:`UP trend, EMA9>EMA21, RSI ${rsi.toFixed(1)}`, rsi, trend, score: score+5, emaGap };
-  if (trend === 'DOWN' && crossDown && rsi >= 50 && rsi <= 70) return { signal:'SELL', reason:`DOWN trend, EMA9<EMA21, RSI ${rsi.toFixed(1)}`, rsi, trend, score: score+5, emaGap };
-  if (nearEma50) return { signal:'SKIP', reason:`choppy near EMA50`, rsi, trend, score, emaGap };
-  if (rsi > 45 && rsi < 55) return { signal:'SKIP', reason:`RSI ${rsi.toFixed(1)} neutral`, rsi, trend, score, emaGap };
-  return { signal:'SKIP', reason:`no setup (RSI ${rsi.toFixed(1)}, ${trend})`, rsi, trend, score, emaGap };
+  // STRATEGY 1+2+3 COMBINED: need 2 of 3 confirmations
+  // 1) RSI+Stochastic reversal (BLW) 2) BB touch 3) EMA/MACD trend
+  const stochOverbought = stochK !== null && stochK > 78 && (stochD===null || stochD > 70);
+  const stochOversold = stochK !== null && stochK < 22 && (stochD===null || stochD < 30);
+  const rsiOverbought = rsi > 68;
+  const rsiOversold = rsi < 32;
+  const macdUp = macdHist !== null && macdHist > 0;
+  const macdDown = macdHist !== null && macdHist < 0;
+
+  // STRONGEST: RSI+Stoch both agree + BB touch = 3-way confirm
+  if (rsiOversold && stochOversold && nearLowerBB) return { signal:'BUY', reason:`3-WAY BUY: RSI ${rsi.toFixed(1)} + Stoch ${stochK.toFixed(1)} + lower BB`, rsi, trend, score: score+18, emaGap, stochK, bb: 'lower' };
+  if (rsiOverbought && stochOverbought && nearUpperBB) return { signal:'SELL', reason:`3-WAY SELL: RSI ${rsi.toFixed(1)} + Stoch ${stochK.toFixed(1)} + upper BB`, rsi, trend, score: score+18, emaGap, stochK, bb: 'upper' };
+  // 2-WAY: RSI+Stoch agree (BLW core) even without BB
+  if (rsiOversold && stochOversold) return { signal:'BUY', reason:`RSI ${rsi.toFixed(1)} + Stoch ${stochK.toFixed(1)} oversold`, rsi, trend, score: score+14, emaGap, stochK, bb: nearLowerBB?'lower':'' };
+  if (rsiOverbought && stochOverbought) return { signal:'SELL', reason:`RSI ${rsi.toFixed(1)} + Stoch ${stochK.toFixed(1)} overbought`, rsi, trend, score: score+14, emaGap, stochK, bb: nearUpperBB?'upper':'' };
+  // 2-WAY: RSI+BB or Stoch+BB
+  if (rsiOversold && nearLowerBB) return { signal:'BUY', reason:`RSI ${rsi.toFixed(1)} + lower BB`, rsi, trend, score: score+10, emaGap, stochK, bb: 'lower' };
+  if (rsiOverbought && nearUpperBB) return { signal:'SELL', reason:`RSI ${rsi.toFixed(1)} + upper BB`, rsi, trend, score: score+10, emaGap, stochK, bb: 'upper' };
+  if (trend === 'UP' && crossUp && macdUp && rsi >= 30 && rsi <= 50) return { signal:'BUY', reason:`UP trend EMA9>21 MACD up RSI ${rsi.toFixed(1)}`, rsi, trend, score: score+8, emaGap, stochK, bb: '' };
+  if (trend === 'DOWN' && crossDown && macdDown && rsi >= 50 && rsi <= 70) return { signal:'SELL', reason:`DOWN trend EMA9<21 MACD down RSI ${rsi.toFixed(1)}`, rsi, trend, score: score+8, emaGap, stochK, bb: '' };
+  if (nearEma50) return { signal:'SKIP', reason:`choppy near EMA50`, rsi, trend, score, emaGap, stochK, bb: '' };
+  if (rsi > 45 && rsi < 55) return { signal:'SKIP', reason:`RSI ${rsi.toFixed(1)} neutral`, rsi, trend, score, emaGap, stochK, bb: '' };
+  return { signal:'SKIP', reason:`no 2-way setup RSI ${rsi.toFixed(1)} Stoch ${stochK?.toFixed(1)??'--'}`, rsi, trend, score, emaGap, stochK, bb: '' };
 }
 
 async function fetch1mCloses(yahooSymbol){
