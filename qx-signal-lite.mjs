@@ -214,11 +214,12 @@ function printComparison(results){
   const secToNext = 60 - sec;
   const entryAdvice = sec <= 10 ? `✅ ENTRY NOW (candle start ${sec}s)` : sec >= 50 ? `⏳ WAIT ${secToNext}s for next :00 candle` : `⚠️ LATE ENTRY (${sec}s into candle) - wait ${secToNext}s`;
 
-  // Check pending WIN/LOSS (1 min expiry)
+   // Check pending WIN/LOSS (2 min expiry to match BFSS)
   const now = Date.now();
+  const expiryMs = 120000;
   for(let i=pending.length-1; i>=0; i--){
     const p = pending[i];
-    if (now - p.ts >= 60000) {
+    if (now - p.ts >= expiryMs) {
       const cur = results.find(r=> r.market === p.market);
       if (cur && cur.price) {
         const win = (p.signal==='BUY' && cur.price > p.price) || (p.signal==='SELL' && cur.price < p.price);
@@ -282,7 +283,7 @@ function printComparison(results){
       if (sec > 10 && sec < 50) console.log(`   ⏰ Entry fix: WAIT ${secToNext}s → trade at next :00 candle (00-10s window)`);
       else if (sec >= 50) console.log(`   ⏰ Entry fix: WAIT ${secToNext}s → next candle :00`);
       else console.log(`   👉 Trade NOW on Quotex (1m expiry, $1) - entry window 00-10s`);
-      const already = pending.find(p=> p.market===best.market && now - p.ts < 60000);
+      const already = pending.find(p=> p.market===best.market && now - p.ts < expiryMs);
       if (!already) {
         pending.push({ market: best.market, price: best.price, signal: best.signal, score: best.score, ts: now });
         process.stdout.write('\x07');
