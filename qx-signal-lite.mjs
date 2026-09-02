@@ -130,8 +130,7 @@ async function fetch1mCloses(yahooSymbol){
 }
 
 async function scanAll(){
-  const results = [];
-  for (const m of MARKETS) {
+  const results = await Promise.all(MARKETS.map(async (m)=>{
     try {
       const data = await fetch1mCloses(m.yahoo);
       const closes = data.map(d=> d.c);
@@ -148,12 +147,11 @@ async function scanAll(){
       }
       const prices = history.get(m.name);
       const s = calcSignal(prices);
-      results.push({ market: m.name, price: last, rsi: s.rsi, trend: s.trend, signal: s.signal, reason: s.reason, score: s.score, emaGap: s.emaGap });
+      return { market: m.name, price: last, rsi: s.rsi, trend: s.trend, signal: s.signal, reason: s.reason, score: s.score, emaGap: s.emaGap };
     } catch(e){
-      results.push({ market: m.name, price: null, rsi: null, trend: '--', signal: 'ERR', reason: e.message.slice(0,40), score: -999 });
+      return { market: m.name, price: null, rsi: null, trend: '--', signal: 'ERR', reason: e.message.slice(0,40), score: -999 };
     }
-    await new Promise(r=>setTimeout(r, 110));
-  }
+  }));
   results.sort((a,b)=> b.score - a.score);
   return results;
 }
@@ -178,7 +176,7 @@ Risk: Educational only. Not financial advice. High-risk.
     setInterval(pollTelegram, 5000);
     pollTelegram();
   }
-  const delayToNextMinute = 60000 - (Date.now() % 60000) + 2000;
+  const delayToNextMinute = 60000 - (Date.now() % 60000) + 800;
   console.log(`\n--- Live every 60s synced to Quotex :00 candle (next in ${Math.round(delayToNextMinute/1000)}s, Ctrl+C to stop) ---`);
   setTimeout(()=>{
     setInterval(async()=>{
