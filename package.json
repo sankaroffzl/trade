@@ -8,7 +8,9 @@
     "trade:demo:headed": "HEADED=1 node qx-demo-10x1.mjs",
     "signal": "node qx-signal.mjs",
     "signal:headed": "HEADED=1 node qx-signal.mjs",
-    "signal:lite": "node qx-signal-lite.mjs"
+    "signal:lite": "node qx-signal-lite.mjs",
+    "signal:quotex": "node qx-signal-quotex.mjs",
+    "signal:quotex:headed": "HEADED=1 node qx-signal-quotex.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
