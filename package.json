@@ -10,7 +10,8 @@
     "signal:headed": "HEADED=1 node qx-signal.mjs",
     "signal:lite": "node qx-signal-lite.mjs",
     "signal:quotex": "node qx-signal-quotex.mjs",
-    "signal:quotex:headed": "HEADED=1 node qx-signal-quotex.mjs"
+    "signal:quotex:headed": "HEADED=1 node qx-signal-quotex.mjs",
+    "quotex:live": "node qx-quotex-live.mjs"
   },
   "dependencies": {
     "dotenv": "^16.4.5",
