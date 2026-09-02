@@ -3,16 +3,59 @@ import 'dotenv/config';
 
 const TG_TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const TG_CHAT = process.env.TELEGRAM_CHAT_ID || '';
+import fs from 'fs';
+const SUB_FILE = './subscribers.json';
+let subscribers = new Set();
+try {
+  if (TG_CHAT) TG_CHAT.split(',').map(s=>s.trim()).filter(Boolean).forEach(id=> subscribers.add(id));
+  if (fs.existsSync(SUB_FILE)) JSON.parse(fs.readFileSync(SUB_FILE,'utf8')).forEach(id=> subscribers.add(String(id)));
+} catch {}
+function saveSubs(){ try{ fs.writeFileSync(SUB_FILE, JSON.stringify([...subscribers])); }catch{} }
+let tgOffset = 0;
+async function pollTelegram(){
+  if (!TG_TOKEN) return;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/getUpdates?offset=${tgOffset}&timeout=0`);
+    const j = await res.json();
+    if (j.ok && j.result.length) {
+      for (const u of j.result) {
+        tgOffset = u.update_id + 1;
+        const chatId = String(u.message?.chat?.id || u.channel_post?.chat?.id || '');
+        const text = (u.message?.text || '').trim();
+        if (!chatId) continue;
+        if (!subscribers.has(chatId)) {
+          subscribers.add(chatId); saveSubs();
+          console.log(`👤 New subscriber: ${chatId} (${u.message?.chat?.first_name || ''})`);
+        }
+        if (text === '/start') {
+          await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: `✅ Subscribed! You will now get Quotex signals (STRICT HIGH/MEDIUM, 60s synced to :00). Send /stop to unsubscribe.`, parse_mode: 'Markdown' })
+          });
+        }
+        if (text === '/stop') {
+          subscribers.delete(chatId); saveSubs();
+          await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: chatId, text: `❌ Unsubscribed.` })
+          });
+        }
+      }
+    }
+  } catch(e){ }
+}
 
 async function sendTelegram(text){
-  if (!TG_TOKEN || !TG_CHAT) return;
-  try {
-    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: TG_CHAT, text, parse_mode: 'Markdown' })
-    });
-  } catch(e){ console.error('Telegram error:', e.message); }
+  if (!TG_TOKEN || subscribers.size === 0) return;
+  for (const chatId of subscribers) {
+    try {
+      await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
+      });
+    } catch(e){ console.error('Telegram error:', e.message); }
+  }
 }
 
 const MARKETS = [
@@ -130,6 +173,11 @@ Risk: Educational only. Not financial advice. High-risk.
   let results = await scanAll();
   printComparison(results);
 
+  if (TG_TOKEN) {
+    console.log(`Telegram public mode: anyone who sends /start to your bot gets signals. Current subscribers: ${subscribers.size}`);
+    setInterval(pollTelegram, 5000);
+    pollTelegram();
+  }
   const delayToNextMinute = 60000 - (Date.now() % 60000) + 2000;
   console.log(`\n--- Live every 60s synced to Quotex :00 candle (next in ${Math.round(delayToNextMinute/1000)}s, Ctrl+C to stop) ---`);
   setTimeout(()=>{
@@ -207,7 +255,7 @@ function printComparison(results){
     }
   } else {
     console.log(`⚪ No BUY/SELL this scan - Best candidate is ${best.market} but still ${best.signal} (${best.reason})`);
-    console.log(`   → Perfect market says WAIT - don't trade this minute. Best of 16 is still not good enough.`);
+    console.log(`   → Perfect market says WAIT - don't trade this minute. Best of 12 is still not good enough.`);
     const nextBest = results.find(r=> r.signal==='BUY' || r.signal==='SELL');
     if (nextBest) console.log(`   → Next closest signal: ${nextBest.market} ${nextBest.signal} Score ${nextBest.score.toFixed(1)}`);
   }
