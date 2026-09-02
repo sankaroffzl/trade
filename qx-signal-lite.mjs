@@ -189,7 +189,11 @@ Risk: Educational only. Not financial advice. High-risk.
 }
 
 function printComparison(results){
-  const time = new Date().toLocaleTimeString('en-GB', {hour12:false});
+  const nowDt = new Date();
+  const time = nowDt.toLocaleTimeString('en-GB', {hour12:false});
+  const sec = nowDt.getSeconds();
+  const secToNext = 60 - sec;
+  const entryAdvice = sec <= 10 ? `✅ ENTRY NOW (candle start ${sec}s)` : sec >= 50 ? `⏳ WAIT ${secToNext}s for next :00 candle` : `⚠️ LATE ENTRY (${sec}s into candle) - wait ${secToNext}s`;
 
   // Check pending WIN/LOSS (1 min expiry)
   const now = Date.now();
@@ -238,11 +242,13 @@ function printComparison(results){
       console.log(`${arrow} ┌─ PERFECT MARKET (Best of 12) ──────────`);
       console.log(`   │ Market: ${best.market}`);
       console.log(`   │ Signal: ${dir}  (1 MIN)`);
-      console.log(`   │ Time: ${time}`);
+      console.log(`   │ Time: ${time} | Candle: ${sec}s | ${entryAdvice}`);
       console.log(`   │ Price: ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars}`);
       console.log(`   │ Reason: ${best.reason}`);
       console.log(`   └─────────────────────────────────`);
-      console.log(`   👉 Trade this ONE market manually on Quotex (1m expiry, $1)`);
+      if (sec > 10 && sec < 50) console.log(`   ⏰ Entry fix: WAIT ${secToNext}s → trade at next :00 candle (00-10s window)`);
+      else if (sec >= 50) console.log(`   ⏰ Entry fix: WAIT ${secToNext}s → next candle :00`);
+      else console.log(`   👉 Trade NOW on Quotex (1m expiry, $1) - entry window 00-10s`);
       const already = pending.find(p=> p.market===best.market && now - p.ts < 60000);
       if (!already) {
         pending.push({ market: best.market, price: best.price, signal: best.signal, score: best.score, ts: now });
@@ -250,7 +256,7 @@ function printComparison(results){
         console.log(`   🔔 BEEP + queued for 1m result check (W:${wins} L:${losses})`);
         const stars2 = best.score > 15 ? '⭐⭐⭐ HIGH' : best.score > 8 ? '⭐⭐ MEDIUM' : '⭐ LOW';
         const arrow2 = best.signal === 'BUY' ? '🟢' : '🔴';
-        sendTelegram(`${arrow2} *PERFECT MARKET* ⭐ #1/12\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars2}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_ Synced :00`);
+        sendTelegram(`${arrow2} *PERFECT MARKET* ⭐ #1/12\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time} | Candle ${sec}s | ${entryAdvice}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars2}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_ Synced :00`);
       }
     }
   } else {
