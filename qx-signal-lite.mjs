@@ -87,9 +87,6 @@ const MARKETS = [
   { name: 'NAS100', yahoo: '^IXIC' },
   { name: 'SPX500', yahoo: '^GSPC' },
   { name: 'USD/INR', yahoo: 'INR=X' },
-  { name: 'USD/IDR (OTC)', yahoo: 'IDR=X' },
-  { name: 'USD/ARS (OTC)', yahoo: 'ARS=X' },
-  { name: 'USD/BRL (OTC)', yahoo: 'BRL=X' },
   { name: 'EUR/CHF', yahoo: 'EURCHF=X' },
   { name: 'GBP/CAD', yahoo: 'GBPCAD=X' },
 ];
@@ -258,12 +255,6 @@ function printComparison(results){
       const nextGood = results.find(r=> (r.signal==='BUY'||r.signal==='SELL') && r.score >= MIN_SCORE);
       if (nextGood) console.log(`   → Next good: ${nextGood.market} ${nextGood.signal} Score ${nextGood.score.toFixed(1)}`);
     } else {
-      const expiry = process.env.EXPIRY || '2 Minutes';
-      const entryTime = time;
-      const sigIcon = best.signal==='BUY' ? '🟢 CALL' : '🔴 PUT';
-      const aiText = best.signal==='BUY'
-        ? `Price reached exhaustion and confirmed bullish reversal through breakout of local structure and increasing buying momentum. RSI ${best.rsi.toFixed(1)} oversold, ${best.trend} trend.`
-        : `Price reached exhaustion and confirmed a bearish reversal through a breakdown of local structure and increasing selling momentum. RSI ${best.rsi.toFixed(1)} overbought, ${best.trend} trend.`;
       console.log(`${arrow} ┌─ PERFECT MARKET (Best of ${MARKETS.length}) ──────────`);
       console.log(`   │ Market: ${best.market}`);
       console.log(`   │ Signal: ${dir}  (1 MIN)`);
@@ -271,14 +262,6 @@ function printComparison(results){
       console.log(`   │ Price: ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars}`);
       console.log(`   │ Reason: ${best.reason}`);
       console.log(`   └─────────────────────────────────`);
-      console.log(`\n🔷 BFSS QUOTEX BOT`);
-      console.log(`━━━━━━━━━━━━━━━━━━━━━━`);
-      console.log(`📊 Asset: ${best.market} ${best.market.includes('OTC')?'':' (93%)'} | TF: M1`);
-      console.log(`⏰ Entry Time: ${entryTime}`);
-      console.log(`⏳ Expiry: ${expiry}`);
-      console.log(`🎯 Signal: ${sigIcon}`);
-      console.log(`💡 AI Analysis: ${aiText}`);
-      console.log(`━━━━━━━━━━━━━━━━━━━━━━`);
       if (sec > 10 && sec < 50) console.log(`   ⏰ Entry fix: WAIT ${secToNext}s → trade at next :00 candle (00-10s window)`);
       else if (sec >= 50) console.log(`   ⏰ Entry fix: WAIT ${secToNext}s → next candle :00`);
       else console.log(`   👉 Trade NOW on Quotex (1m expiry, $1) - entry window 00-10s`);
@@ -286,10 +269,10 @@ function printComparison(results){
       if (!already) {
         pending.push({ market: best.market, price: best.price, signal: best.signal, score: best.score, ts: now });
         process.stdout.write('\x07');
-        console.log(`   🔔 BEEP + queued for 2m result check (W:${wins} L:${losses})`);
+        console.log(`   🔔 BEEP + queued for 1m result check (W:${wins} L:${losses})`);
         const stars2 = best.score > 15 ? '⭐⭐⭐ HIGH' : best.score > 8 ? '⭐⭐ MEDIUM' : '⭐ LOW';
         const arrow2 = best.signal === 'BUY' ? '🟢' : '🔴';
-        sendTelegram(`🔷 *BFSS QUOTEX BOT*\n━━━━━━━━━━━━━━\n📊 *Asset:* ${best.market}\n⏰ *Entry Time:* ${entryTime}\n⏳ *Expiry:* ${expiry}\n🎯 *Signal:* ${sigIcon}\n💡 *AI Analysis:* ${aiText}\n━━━━━━━━━━━━━━\nScore ${best.score.toFixed(1)} ${stars2} | ${entryAdvice}`);
+        sendTelegram(`${arrow2} *PERFECT MARKET* ⭐ #1/${MARKETS.length}\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time} | Candle ${sec}s | ${entryAdvice}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars2}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_ Synced :00`);
       }
     }
   } else {
