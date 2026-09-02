@@ -159,8 +159,8 @@ async function scanAll(){
 async function main(){
   const tgStatus = TG_TOKEN && TG_CHAT ? `Telegram: ON → ${TG_CHAT}` : 'Telegram: OFF (add TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID to .env to enable phone push)';
   console.log(`
-=== Quotex SIGNAL LITE - Compare All Markets - Perfect Market Picker ===
-Source: Yahoo Finance 1m (real market, non-OTC only for 99% accuracy)
+=== Quotex SIGNAL LITE (MANUAL - you open Quotex) - Compare All Markets - Perfect Market Picker ===
+Source: Yahoo Finance 1m (real market, non-OTC only) - NO Playwright
 Strategy: RSI14 + EMA9/21 + EMA50, 1min expiry - compares all 12, shows #1 perfect
 Mode: SIGNAL ONLY - you trade manually | ${tgStatus}
 Strict: ${STRICT ? `ON (min Score ${MIN_SCORE}, HIGH/MEDIUM only)` : 'OFF'} | Synced to :00 | W:${wins} L:${losses}
@@ -176,8 +176,8 @@ Risk: Educational only. Not financial advice. High-risk.
     setInterval(pollTelegram, 5000);
     pollTelegram();
   }
-  const delayToNextMinute = 60000 - (Date.now() % 60000) + 800;
-  console.log(`\n--- Live every 60s synced to Quotex :00 candle (next in ${Math.round(delayToNextMinute/1000)}s, Ctrl+C to stop) ---`);
+  const delayToNextMinute = 60000 - (Date.now() % 60000);
+  console.log(`\n--- Live every 60s synced to Quotex :00 (manual Quotex open) - next in ${Math.round(delayToNextMinute/1000)}s, Ctrl+C to stop ---`);
   setTimeout(()=>{
     setInterval(async()=>{
       results = await scanAll();
