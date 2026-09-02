@@ -64,8 +64,9 @@ async function main(){
   const page=await ctx.newPage();
   page.on('console',m=> console.log('[browser]',m.text().slice(0,200)));
   console.log('→ Logging to Quotex (headless, no window)...');
-  await page.goto('https://qxbroker.com/en/sign-in',{waitUntil:'domcontentloaded'});
-  await page.waitForTimeout(1500);
+  try { await page.goto('https://qxbroker.com/en/sign-in',{waitUntil:'domcontentloaded', timeout:60000}); }
+  catch(e){ console.log('First goto timeout, retrying...'); try{ await page.goto('https://qxbroker.com/en/sign-in',{waitUntil:'load', timeout:60000}); }catch(e2){ console.log('Still timeout - check internet / try 4G vs WiFi, Cloudflare may block headless'); throw e2; } }
+  await page.waitForTimeout(2500);
   let eEl=page.locator('input[type="text"], input[type="email"]').filter({visible:true}).first();
   let pEl=page.locator('input[type="password"]').filter({visible:true}).first();
   await eEl.click(); await eEl.fill(QX_EMAIL); await page.waitForTimeout(300);
@@ -74,7 +75,7 @@ async function main(){
   const b=page.getByRole('button',{name:/Sign in/i}).first();
   if(await b.isVisible().catch(()=>false)) await b.click(); else await page.keyboard.press('Enter');
   console.log('→ Waiting for trade page...');
-  const ok=await page.waitForURL(/\/trade|\/cabinet/i,{timeout:30000}).then(()=>true).catch(async()=>{ await page.screenshot({path:'debug-live-login.png'}).catch(()=>{}); console.log('Still on sign-in, login failed - check .env password / PIN'); return false; });
+  const ok=await page.waitForURL(/\/trade|\/cabinet/i,{timeout:60000}).then(()=>true).catch(async()=>{ await page.screenshot({path:'debug-live-login.png'}).catch(()=>{}); console.log('Still on sign-in, login failed - check .env password / PIN or run with headed once to solve Cloudflare'); console.log('Current URL:', page.url()); return false; });
   if(!ok){ await browser.close(); process.exit(2); }
   if(!/\/trade/.test(page.url())){ await page.goto('https://qxbroker.com/en/trade',{waitUntil:'domcontentloaded'}); await page.waitForTimeout(2000); }
   console.log(`→ On ${page.url()} - live feed starting (no window popup)`);
