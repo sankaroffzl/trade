@@ -60,17 +60,35 @@ async function sendTelegram(text){
 
 const MARKETS = [
   { name: 'EUR/USD', yahoo: 'EURUSD=X' },
+  { name: 'EUR/USD OTC', yahoo: 'EURUSD=X' },
   { name: 'GBP/USD', yahoo: 'GBPUSD=X' },
+  { name: 'GBP/USD OTC', yahoo: 'GBPUSD=X' },
   { name: 'USD/JPY', yahoo: 'JPY=X' },
+  { name: 'USD/JPY OTC', yahoo: 'JPY=X' },
   { name: 'AUD/USD', yahoo: 'AUDUSD=X' },
+  { name: 'AUD/USD OTC', yahoo: 'AUDUSD=X' },
   { name: 'USD/CAD', yahoo: 'CAD=X' },
+  { name: 'USD/CAD OTC', yahoo: 'CAD=X' },
   { name: 'EUR/JPY', yahoo: 'EURJPY=X' },
   { name: 'GBP/JPY', yahoo: 'GBPJPY=X' },
   { name: 'EUR/GBP', yahoo: 'EURGBP=X' },
   { name: 'USD/CHF', yahoo: 'CHF=X' },
+  { name: 'USD/CHF OTC', yahoo: 'CHF=X' },
   { name: 'AUD/JPY', yahoo: 'AUDJPY=X' },
   { name: 'NZD/USD', yahoo: 'NZDUSD=X' },
+  { name: 'NZD/USD OTC', yahoo: 'NZDUSD=X' },
+  { name: 'EUR/GBP OTC', yahoo: 'EURGBP=X' },
+  { name: 'Gold', yahoo: 'GC=F' },
+  { name: 'Silver', yahoo: 'SI=F' },
   { name: 'BTC/USD', yahoo: 'BTC-USD' },
+  { name: 'BTC/USD OTC', yahoo: 'BTC-USD' },
+  { name: 'ETH/USD', yahoo: 'ETH-USD' },
+  { name: 'US30', yahoo: '^DJI' },
+  { name: 'NAS100', yahoo: '^IXIC' },
+  { name: 'SPX500', yahoo: '^GSPC' },
+  { name: 'USD/INR', yahoo: 'INR=X' },
+  { name: 'EUR/CHF', yahoo: 'EURCHF=X' },
+  { name: 'GBP/CAD', yahoo: 'GBPCAD=X' },
 ];
 
 const STRICT = true;
@@ -213,7 +231,7 @@ function printComparison(results){
     }
   }
 
-  console.log(`\n[${time}] Compared 12 markets - ranked by accuracy:`);
+  console.log(`\n[${time}] Compared ${MARKETS.length} markets - ranked by accuracy:`);
   console.log(` Rank | Market         | Signal     | Price      | RSI   | Trend | Score | Reason`);
   console.log(` ---- | -------------- | ---------- | ---------- | ----- | ----- | ----- | ----------------`);
   results.slice(0,8).forEach((r,i)=>{
@@ -237,7 +255,7 @@ function printComparison(results){
       const nextGood = results.find(r=> (r.signal==='BUY'||r.signal==='SELL') && r.score >= MIN_SCORE);
       if (nextGood) console.log(`   → Next good: ${nextGood.market} ${nextGood.signal} Score ${nextGood.score.toFixed(1)}`);
     } else {
-      console.log(`${arrow} ┌─ PERFECT MARKET (Best of 12) ──────────`);
+      console.log(`${arrow} ┌─ PERFECT MARKET (Best of ${MARKETS.length}) ──────────`);
       console.log(`   │ Market: ${best.market}`);
       console.log(`   │ Signal: ${dir}  (1 MIN)`);
       console.log(`   │ Time: ${time} | Candle: ${sec}s | ${entryAdvice}`);
@@ -254,7 +272,7 @@ function printComparison(results){
         console.log(`   🔔 BEEP + queued for 1m result check (W:${wins} L:${losses})`);
         const stars2 = best.score > 15 ? '⭐⭐⭐ HIGH' : best.score > 8 ? '⭐⭐ MEDIUM' : '⭐ LOW';
         const arrow2 = best.signal === 'BUY' ? '🟢' : '🔴';
-        sendTelegram(`${arrow2} *PERFECT MARKET* ⭐ #1/12\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time} | Candle ${sec}s | ${entryAdvice}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars2}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_ Synced :00`);
+        sendTelegram(`${arrow2} *PERFECT MARKET* ⭐ #1/${MARKETS.length}\n*Market:* ${best.market}\n*Signal:* ${best.signal} ↑ (1 MIN)\n*Time:* ${time} | Candle ${sec}s | ${entryAdvice}\n*Price:* ${best.price.toFixed(5)}  RSI: ${best.rsi.toFixed(1)}  Trend: ${best.trend}  Score: ${best.score.toFixed(1)} ${stars2}\n*Reason:* ${best.reason}\n_Trade manually on Quotex 1m, $1_ Synced :00`);
       }
     }
   } else {
